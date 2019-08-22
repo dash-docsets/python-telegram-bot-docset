@@ -1,0 +1,41 @@
+kind: pipeline
+name: Dash Docset generator
+
+steps:
+- name: start-debug-server
+  image: kdrag0n/drone-ssh-debug:latest
+  detach: true
+  settings:
+    authorized_keys:
+      # authorized_keys for SSH debug server in ssh_authorized_keys secret
+      from_secret: ssh_authorized_keys
+  when:
+    event:
+      exclude:
+        - pull_request
+- name: Main
+  image: golang:stretch
+  environment:
+    GITHUB_TOKEN:
+      from_secret: GITHUB_TOKEN
+  commands:
+  - wget -q https://raw.githubusercontent.com/dash-docsets/readthedocs2docset/master/generate.sh
+  - chmod +x generate.sh && ./generate.sh python-telegram-bot
+- name: wait_for_debug
+  image: golang:stretch
+
+  environment:
+    # Amount of time to wait for debugging
+    # This is intended to serve as a brief preliminary analysis, not a
+    # full-fledged post-mortem analysis session
+    DEBUG_TIME: 10m
+
+  commands:
+    - sleep $DEBUG_TIME
+
+  when:
+    status:
+      - failure
+    event:
+      exclude:
+        - pull_request
